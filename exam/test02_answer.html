@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    #box {
+      /* 脱离文档流 absolute fixed :
+         绝对定位 absolute : 父级 有被定为的元素 相对于父级 否则 相对于浏览器*/
+      /* 相对定位 relative */
+      /* 固定定位 fixed : 相对于浏览器 */
+      /* 粘性定位 sticky : 吸顶效果*/
+      /* 默认定位 static*/
+      position: sticky;
+      height: 2000px;
+
+    }
+
+    .ss {
+      width: 100px;
+      height: 100px;
+      position: sticky;
+      /*top: 0px;*/
+      background-color: #3eaf7c;
+    }
+
+    .tt {
+      width: 100px;
+      height: 100px;
+      top: 50px;
+      position: static;
+      background-color: #af3f59;
+    }
+  </style>
+  <title>Title</title>
+</head>
+<body>
+<div id="box">
+  <div class="ss"></div>
+  <div class="tt"></div>
+</div>
+<script>
+  /*
+  * Position
+  * 怪异盒模型 : IE
+  * */
+
+  // 先同步 微任务 宏任务
+  // 2 10 3 5  4 1
+  // setTimeout(function() {
+  //   console.log(1)
+  // }, 0);
+  // new Promise(function(resolve, reject) {
+  //   console.log(2)
+  //   for (var i = 0; i < 10000; i++) {
+  //     if(i === 10) {console.log(10)}
+  //     i == 9999 && resolve();
+  //   }
+  //   console.log(3)
+  // }).then(function() {
+  //   console.log(4)
+  // })
+  // console.log(5);
+
+  function change(num) {
+    // 判断位数
+    let len = (num + '').length;
+    if (len < 5) {
+      return '' + num;
+    } else if (len >= 5 && len < 9) {
+      return (num / 10000).toFixed(2) + '万';
+    } else if (len >= 9) {
+      return (num / (10000 * 10000)).toFixed(2) + '亿'
+    }
+  }
+
+  console.log(change(124));
+
+  function getSum(arr) {
+    return arr.reduce((pre, next) => {
+      return pre += next.x;
+    }, 0);
+  }
+
+  console.log(getSum([{x: 1}, {x: 2}, {x: 3}]));
+
+  function getThis() {
+    return {
+      name: "abc",
+      fn: function () {
+        console.log(this)
+      },
+      fn1: function () {
+        return () => {
+          console.log(this)
+        }
+      }
+    }
+  }
+
+  // getThis.a = function () {
+  //   console.log(this);
+  // };
+  // window
+  // window /
+  // let fn = getThis();
+  // fn();
+  // getThis.a();
+  getThis().fn1()(); // {}  window
+  // es5的函数function:谁调用this就指向谁 // {}  window
+  // es6的箭头函数 : this指向父级的this指向
+
+  var a = {
+    name: 'A',
+    fn: function () {
+      console.log(this.name)
+    }
+  };
+  a.fn();  // A
+  a.fn.call({name: 'B'});  // B
+  var fn1 = a.fn;
+  fn1()  //
+
+  // 原型 属性
+  // obj 是对象
+  // obj .push   Array.prototype.push
+  // [] // 数据添加一个 长度增加一个
+  // length : 2
+  //
+  var obj = {
+    '2': 3,
+    '3': 4,
+    'length': 2,
+    'splice': Array.prototype.splice,
+    'push': Array.prototype.push
+  };
+  obj.push(1);
+  obj.push(2);
+  console.log(obj)
+
+  /*
+  * 求数组的交集并集差集
+  * */
+
+  /*Set : es6 出来的新语法*/
+
+  function getU(arr1, arr2) {
+    let set1 = new Set(arr1);
+    let set2 = new Set(arr2);
+    return [...new Set([...set1].filter(x => {
+      return set2.has(x)
+    }))]
+  }
+
+  function getX(arr1, arr2) {
+    let set1 = new Set(arr1);
+    let set2 = new Set(arr2);
+    return [
+      ...new Set([...set1].filter(x => !set2.has(x))),
+      ...new Set([...set2].filter(x => !set1.has(x)
+      ))]
+  }
+
+  console.log(getU([1, 2, 3], [3, 4, 5]));
+  console.log(getX([1, 2, 3], [3, 4, 5]));
+
+</script>
+
+<script>
+  console.log('/*****************华丽丽的分割线*************************/');
+  // 实现Person函数 使下列过程成立
+  // Person('li').sleep(1000).sleep(2000).sleepFirst(5000)
+  // .eat('dinner').sleep(1000).eat('food');
+  /** 打印结果
+   sleep before 5000 //5s后打印 sleepFirst中输出
+   This is li
+   sleep after 1000 // 1s后打印
+   sleep after 2000 // 2s后打印
+   eat dinner
+   sleep after 1000 // 1s后打印
+   eat food
+   */
+  /*
+  * 1. 实例和类的关系 new 的原理
+  * 2. this指向
+  * 3. 事件循环
+  * 4. 链式调用
+  * */
+  function Person(name, time) {
+    let obj = {
+      taskArr: [],
+      name
+    };
+    //
+    obj.__proto__ = Person.prototype;
+    let task = () => {
+      new Promise(resolve => {
+        resolve();
+      }).then(() => {
+        obj.mySleep(time);
+        console.log(obj.name, time);
+      })
+    };
+    obj.taskArr.push(task);
+    setTimeout(() => {
+      obj.taskArr.forEach(fn => {
+        fn();
+      })
+    });
+    return obj;
+  }
+
+  Person.prototype.sleep = function (time) {
+    const task = () => {
+      setTimeout(async () => {
+        this.mySleep(time);
+        console.log(`sleep after ${time}`);
+      }, 0);
+    };
+    this.taskArr.push(task);
+    return this
+  };
+
+  Person.prototype.sleepFirst = function (time) {
+    const task = () => {
+      this.mySleep(time);
+      console.log(`sleep before ${time}`);
+    };
+    this.taskArr.push(task);
+    return this;
+  };
+
+  Person.prototype.eat = function (food) {
+    const task = () => {
+      setTimeout(() => {
+        console.log(`eat ${food}`);
+      }, 0)
+    };
+    this.taskArr.push(task);
+    return this
+  };
+
+  Person.prototype.mySleep = function (time) {
+    let timeStart = new Date().getTime();
+    let timeEnd = new Date().getTime();
+    while ((timeEnd - timeStart) <= time) {
+      timeEnd = new Date().getTime();
+    }
+  };
+
+
+  // 同步 微任务 宏任务 {} [方法1,方法2,方法3]
+  // 事件循环 先执行 同步 再执行异步 微任务 宏任务
+  // arr = [微任务,宏任务,同步]
+  Person('li', 1000) // 2
+    .sleep(1000) // 3
+    .sleepFirst(1000) // 1
+    .sleep(2000) //3
+    .eat('苹果')//3
+    .sleepFirst(2000)
+    .sleep(3000)//3
+    .eat('香蕉');//3
+
+</script>
+</body>
+</html>
