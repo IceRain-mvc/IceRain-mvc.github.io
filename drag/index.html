@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    * {
+      font-size: 14px;
+    }
+
+    .drag-area {
+      height: 200px;
+      width: 300px;
+      border: dashed 1px gray;
+      margin-bottom: 10px;
+      color: #777;
+    }
+
+    .uploader-tips {
+      text-align: center;
+      height: 200px;
+      line-height: 200px;
+    }
+
+    .file-name {
+      text-align: center;
+      height: 200px;
+      line-height: 200px;
+    }
+
+    .ant-btn {
+      line-height: 1.5715;
+      position: relative;
+      display: inline-block;
+      font-weight: 400;
+      white-space: nowrap;
+      text-align: center;
+      box-shadow: 0 2px 0 rgba(0, 0, 0, 0.015);
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+      touch-action: manipulation;
+      height: 32px;
+      padding: 4px 15px;
+      font-size: 14px;
+      border-radius: 2px;
+      color: rgb(255, 65, 58);
+      border: 1px solid #d9d9d9;
+      background: #fff none;
+    }
+
+    .ant-btn_c {
+      line-height: 1.5715;
+      position: relative;
+      width: 88px;
+      display: inline-block;
+      font-weight: 400;
+      white-space: nowrap;
+      text-align: center;
+      box-shadow: 0 2px 0 rgba(0, 0, 0, 0.015);
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+      touch-action: manipulation;
+      height: 32px;
+      padding: 4px 15px;
+      font-size: 14px;
+      border-radius: 2px;
+      color: rgb(255, 254, 246);
+      border: 1px solid #d9d9d9;
+      background: #4b68c1 none;
+    }
+
+    .ant-btn > .anticon {
+      line-height: 1;
+    }
+
+    .ant-btn,
+    .ant-btn:active,
+    .ant-btn:focus {
+      outline: 0;
+    }
+
+    .ant-btn:not([disabled]):hover {
+      text-decoration: none;
+    }
+
+    .ant-btn:not([disabled]):active {
+      outline: 0;
+      box-shadow: none;
+    }
+
+    .ant-btn[disabled] {
+      cursor: not-allowed;
+    }
+
+    .ant-btn[disabled] > * {
+      pointer-events: none;
+    }
+
+    .img_loading {
+      width: 40px;
+      border-radius: 50%;
+      vertical-align: middle;
+    }
+
+    .url {
+      margin-top: 20px;
+    }
+
+    .uploadUrl {
+      border: 1px dashed #d65a7e;
+      display: inline;
+      border-radius: 4px;
+      height: 20px;
+      padding: 10px;
+      line-height: 20px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="content">
+    <div class="drag-area" @dragover="fileDragover" @drop="fileDrop">
+      <div v-if="fileName" class="file-name">{{ fileName }}</div>
+      <div v-else class="uploader-tips">
+        <span>将文件拖拽至此，或</span>
+        <label for="fileInput" style="color: #11A8FF; cursor: pointer">点此上传</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <input type="file" id="fileInput" @change="chooseUploadFile" style="display: none;">
+    <label for="fileInput" v-if="fileName" style="color: #11A8FF; cursor: pointer">选择文件</label>
+    <button class="ant-btn" @click="uploadOk">提交</button>
+    <span v-show="loading">
+      <img class="img_loading" src="https://cdn.jsdelivr.net/gh/IceRain-mvc/cdn/teacher/7902578ac7adf4b9.gif" alt="gif">
+    </span>
+  </div>
+  <div class="url" v-if="uploadUrl">
+    <input :value="uploadUrl" id="srcInput" class="uploadUrl">
+    <button @click="copy" class="ant-btn" v-show="!isCopy">复制链接</button>
+    <button class="ant-btn_c" v-show="isCopy">√</button>
+    <button class="ant-btn" @click="openUrl">新标签打开</button>
+  </div>
+</div>
+<script>
+  let vm = new Vue({
+    el: '#app',
+    data() {
+      return {
+        fileName: '',
+        batchFile: '',
+        isCopy: false,
+        MAX_FILE_SIZE: 10 * 1000 * 1000,
+        uploadUrl: '',
+        loading: false
+      }
+    },
+    methods: {
+      // 点击上传
+      chooseUploadFile(e) {
+        const file = e.target.files.item(0)
+
+        if (!file) return
+        if (file.size > this.MAX_FILE_SIZE) {
+          return alert('文件大小不能超过10M')
+        }
+
+        this.batchFile = file
+        this.fileName = file.name
+
+        // 清空，防止上传后再上传没有反应
+        e.target.value = ''
+      },
+      copy() {
+        const input = document.querySelector('#srcInput');
+        input.select();
+        if (document.execCommand('copy')) {
+          document.execCommand('copy');
+          this.isCopy = true;
+          setTimeout(() => this.isCopy = false, 2000);
+        }
+      },
+      openUrl() {
+        location.href = this.uploadUrl;
+      },
+      // 拖拽上传
+      fileDragover(e) {
+        e.preventDefault()
+      },
+
+      fileDrop(e) {
+        e.preventDefault()
+        const file = e.dataTransfer.files[0] // 获取到第一个上传的文件对象
+
+        if (!file) return
+        if (file.size > this.MAX_FILE_SIZE) {
+          return alert('文件大小不能超过10M')
+        }
+
+        this.batchFile = file
+        this.fileName = file.name
+      },
+      // 提交
+      async uploadOk() {
+        if (this.batchFile === '') {
+          return alert('请选择要上传的文件')
+        }
+
+        let data = new FormData()
+        data.append('upfile', this.batchFile)
+        console.log(this.batchFile.name);
+        this.loading = true;
+        let [err, res] = await uploadToGithub(this.batchFile.name, this.batchFile);
+        this.loading = false;
+        // ajax
+        console.log(err, res);
+        if (res.img) {
+          this.uploadUrl = res.img;
+        }
+      }
+
+    }
+  })
+
+
+  function getFileBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = function (e) {
+        if (e.target) {
+          const res = (e.target.result + '').split(',')[1];
+          // 转换已经完成
+          resolve(res);
+        } else {
+          reject(new Error('error'));
+        }
+      };
+    });
+  }
+
+  const uploadToGithub = async (
+    filename,
+    file
+  ) => {
+    // const date: Date = new Date();
+    const splitArr = filename.split('.');
+    const suffix = '.' + splitArr[splitArr.length - 1];
+    let fileBase64;
+    let filenameSha256;
+    if (typeof file !== 'string') {
+      fileBase64 = await getFileBase64(file);
+      filenameSha256 = sha256_digest(fileBase64);
+    } else {
+      fileBase64 = file;
+    }
+    filenameSha256 += suffix;
+    const URL = `https://api.github.com/repos/IceRain-mvc/cdn/contents/teacher/${filenameSha256}`;
+    // request 请求实例
+    console.log(filenameSha256);
+    const mvcCdnBaseUrl = 'https://cdn.jsdelivr.net/gh/IceRain-mvc/cdn/teacher/';
+    return axios
+      .request({
+        url: URL,
+        method: 'put',
+        headers: {
+          Accept: 'application/vnd.github.v3+json',
+          Authorization: 'token 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',
+        },
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.lengthComputable) {
+            let complete =
+              (((progressEvent.loaded / progressEvent.total) * 100) | 0);
+            // this.percent = complete
+            console.log(complete)
+            if (complete >= 100) {
+              // this.show = false
+              // this.percent = 0; // 重新置0
+              console.log('完成');
+            }
+          }
+        },
+        data: {
+          message: 'upload',
+          committer: {
+            name: 'IceRain-mvc',
+            email: '1459574275@qq.com',
+          },
+          content: fileBase64,
+        },
+      })
+      .then((data) => {
+        return [
+          null,
+          {
+            img: mvcCdnBaseUrl + data.data.content.name,
+          },
+        ];
+      })
+      .catch((err) => {
+        return [err, {img: mvcCdnBaseUrl + filenameSha256}];
+      });
+  };
+  /* eslint-disable no-bitwise */
+  /* SHA256 logical functions */
+  function rotateRight(n, x) {
+    return (x >>> n) | (x << (32 - n));
+  }
+
+  function choice(x, y, z) {
+    return (x & y) ^ (~x & z);
+  }
+
+  function majority(x, y, z) {
+    return (x & y) ^ (x & z) ^ (y & z);
+  }
+
+  function sha256_Sigma0(x) {
+    return rotateRight(2, x) ^ rotateRight(13, x) ^ rotateRight(22, x);
+  }
+
+  function sha256_Sigma1(x) {
+    return rotateRight(6, x) ^ rotateRight(11, x) ^ rotateRight(25, x);
+  }
+
+  function sha256_sigma0(x) {
+    return rotateRight(7, x) ^ rotateRight(18, x) ^ (x >>> 3);
+  }
+
+  function sha256_sigma1(x) {
+    return rotateRight(17, x) ^ rotateRight(19, x) ^ (x >>> 10);
+  }
+
+  function sha256_expand(W, j) {
+    return (W[j & 0x0f] +=
+      sha256_sigma1(W[(j + 14) & 0x0f]) + W[(j + 9) & 0x0f] + sha256_sigma0(W[(j + 1) & 0x0f]));
+  }
+
+  /* Hash constant words K: */
+  const K256 = [
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+  ];
+
+  /* global arrays */
+  let ihash = [], count = [], buffer = [];
+  const sha256_hex_digits = '0123456789abcdef';
+
+  /* Add 32-bit integers with 16-bit operations (bug in some JS-interpreters:
+  overflow) */
+  function safe_add(x, y) {
+    const lsw = (x & 0xffff) + (y & 0xffff);
+    const msw = (x >> 16) + (y >> 16) + (lsw >> 16);
+    return (msw << 16) | (lsw & 0xffff);
+  }
+
+  /* Initialise the SHA256 computation */
+  function sha256_init() {
+    ihash = new Array(8);
+    count = new Array(2);
+    buffer = new Array(64);
+    count[0] = count[1] = 0;
+    ihash[0] = 0x6a09e667;
+    ihash[1] = 0xbb67ae85;
+    ihash[2] = 0x3c6ef372;
+    ihash[3] = 0xa54ff53a;
+    ihash[4] = 0x510e527f;
+    ihash[5] = 0x9b05688c;
+    ihash[6] = 0x1f83d9ab;
+    ihash[7] = 0x5be0cd19;
+  }
+
+  /* Transform a 512-bit message block */
+  function sha256_transform() {
+    let a,
+      b,
+      c,
+      d,
+      e,
+      f,
+      g,
+      h,
+      T1,
+      T2;
+    const W = new Array(16);
+
+    /* Initialize registers with the previous intermediate value */
+    a = ihash[0];
+    b = ihash[1];
+    c = ihash[2];
+    d = ihash[3];
+    e = ihash[4];
+    f = ihash[5];
+    g = ihash[6];
+    h = ihash[7];
+
+    /* make 32-bit words */
+    for (let i = 0; i < 16; i++) {
+      W[i] =
+        buffer[(i << 2) + 3] |
+        (buffer[(i << 2) + 2] << 8) |
+        (buffer[(i << 2) + 1] << 16) |
+        (buffer[i << 2] << 24);
+    }
+
+    for (let j = 0; j < 64; j++) {
+      T1 = h + sha256_Sigma1(e) + choice(e, f, g) + K256[j];
+      if (j < 16) {
+        T1 += W[j];
+      } else {
+        T1 += sha256_expand(W, j);
+      }
+      T2 = sha256_Sigma0(a) + majority(a, b, c);
+      h = g;
+      g = f;
+      f = e;
+      e = safe_add(d, T1);
+      d = c;
+      c = b;
+      b = a;
+      a = safe_add(T1, T2);
+    }
+
+    /* Compute the current intermediate hash value */
+    ihash[0] += a;
+    ihash[1] += b;
+    ihash[2] += c;
+    ihash[3] += d;
+    ihash[4] += e;
+    ihash[5] += f;
+    ihash[6] += g;
+    ihash[7] += h;
+  }
+
+  /* Read the next chunk of data and update the SHA256 computation */
+  function sha256_update(data, inputLen) {
+    let i;
+    let index;
+    let curpos = 0;
+    /* Compute number of bytes mod 64 */
+    index = (count[0] >> 3) & 0x3f;
+    const remainder = inputLen & 0x3f;
+
+    /* Update number of bits */
+    if ((count[0] += inputLen << 3) < inputLen << 3) {
+      count[1]++;
+    }
+    count[1] += inputLen >> 29;
+
+    /* Transform as many times as possible */
+    for (i = 0; i + 63 < inputLen; i += 64) {
+      for (let j = index; j < 64; j++) {
+        buffer[j] = data.charCodeAt(curpos++);
+      }
+      sha256_transform();
+      index = 0;
+    }
+
+    /* Buffer remaining input */
+    for (let j = 0; j < remainder; j++) {
+      buffer[j] = data.charCodeAt(curpos++);
+    }
+  }
+
+  function sha256_final() {
+    let index = (count[0] >> 3) & 0x3f;
+    buffer[index++] = 0x80;
+    if (index <= 56) {
+      for (let i = index; i < 56; i++) {
+        buffer[i] = 0;
+      }
+    } else {
+      for (let i = index; i < 64; i++) {
+        buffer[i] = 0;
+      }
+      sha256_transform();
+      for (let i = 0; i < 56; i++) {
+        buffer[i] = 0;
+      }
+    }
+    buffer[56] = (count[1] >>> 24) & 0xff;
+    buffer[57] = (count[1] >>> 16) & 0xff;
+    buffer[58] = (count[1] >>> 8) & 0xff;
+    buffer[59] = count[1] & 0xff;
+    buffer[60] = (count[0] >>> 24) & 0xff;
+    buffer[61] = (count[0] >>> 16) & 0xff;
+    buffer[62] = (count[0] >>> 8) & 0xff;
+    buffer[63] = count[0] & 0xff;
+    sha256_transform();
+  }
+
+  /* Get the internal hash as a hex string */
+  function sha256_encode_hex() {
+    let output = '';
+    for (let i = 0; i < 8; i++) {
+      for (let j = 28; j >= 0; j -= 4) {
+        output += sha256_hex_digits.charAt((ihash[i] >>> j) & 0x0f);
+      }
+    }
+    return output;
+  }
+
+  /* Main function: returns a hex string representing the SHA256 value of the
+  given data */
+  function sha256_digest(data) {
+    sha256_init();
+    sha256_update(data, data.length);
+    sha256_final();
+    return sha256_encode_hex().slice(0, 16);
+  }
+
+</script>
+</body>
+</html>
